@@ -1,0 +1,49 @@
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.12'
+    addToPath: true
+    architecture: 'x64'
+
+- task: Bash@3
+  inputs:
+    targetType: 'inline'
+    script: 'pipx install poetry==1.8.3'
+  displayName: 'Install poetry'
+
+
+- task: AzureCLI@2
+  inputs:
+    azureSubscription: 'fabriccicd'
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: 'poetry install && poetry run python fabric_ci_cd/main.py --workspace-id "$(workspace)"'
+    useGlobalConfig: True
+    workingDirectory: 'fabric-ci-cd'
+  displayName: 'Build and Run CI Script'
+
+- task: AzureCLI@2
+  inputs:
+    azureSubscription: 'fabriccicd'
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: 'az storage fs file download  --account-name fabrictests --file-system tests --path latest.xml --auth-mode login'
+    useGlobalConfig: True
+  displayName: 'Download test results'
+
+- task: PublishTestResults@2
+  inputs:
+    testResultsFormat: 'NUnit'
+    testResultsFiles: '**/latest.xml'
+    failTaskOnFailedTests: true
+    failTaskOnFailureToPublishResults: true
+    failTaskOnMissingResultsFile: true
+    testRunTitle: 'Fabric Unit Tests'
+  displayName: 'Publish Unit Tests'
+
