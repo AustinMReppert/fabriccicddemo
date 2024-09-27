@@ -56,16 +56,34 @@ async def main() -> None:
 
     job_args2: dict = json.loads(job_args)
 
-    run = await workspace_client.run_on_demand_item_job(item_id, "RunNotebook", job_args2)
+    #run = await workspace_client.run_on_demand_item_job(item_id, "RunNotebook", job_args2)
+#
+    ## Wait for the run to complete
+    #while run.status == fabricclientaio.models.responses.Status.in_progress \
+    #    or run.status == fabricclientaio.models.responses.Status.not_started:
+    #    run = await workspace_client.get_item_job_instance(run.item_id, run.id)
+    #    await asyncio.sleep(5)
+#
+    #if run.status == fabricclientaio.models.responses.Status.failed:
+    #    raise ValueError("Run failed.")
 
-    # Wait for the run to complete
-    while run.status == fabricclientaio.models.responses.Status.in_progress \
-        or run.status == fabricclientaio.models.responses.Status.not_started:
-        run = await workspace_client.get_item_job_instance(run.item_id, run.id)
-        await asyncio.sleep(5)
+    git_status = await workspace_client.get_status()
 
-    if run.status == fabricclientaio.models.responses.Status.failed:
-        raise ValueError("Run failed.")
+    print(git_status)
+
+    res = await workspace_client.update_from_git(fabricclientaio.models.responses.UpdateFromGitRequest(
+        remoteCommitHash=git_status.remote_commit_hash,
+        workspaceHead=git_status.workspace_head,
+        conflictResolution=fabricclientaio.models.responses.WorkspaceConflictResolution(
+            conflictResolutionType=fabricclientaio.models.responses.ConflictResolutionType.workspace,
+            conflictResolutionPolicy=fabricclientaio.models.responses.ConflictResolutionPolicy.prefer_remote
+        ),
+        options=fabricclientaio.models.responses.UpdateOptions(
+            allowOverrideItems=True
+        )
+    ))
+
+    print(res)
 
 if __name__ == "__main__":
     import asyncio
